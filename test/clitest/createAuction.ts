@@ -46,29 +46,31 @@ console.log(await lucid.utils.getAddressDetails(sellerAddress).paymentCredential
 // Read compiled contact validator from file 
 const auctionValidator: SpendingValidator = await readNoParamsValidator("../../auction/plutus.json",0);
 const auctionAddress: string = await lucid.utils.validatorToAddress(auctionValidator);
-const sellerPkh: string = await lucid.utils.getAddressDetails(auctionAddress).paymentCredential.hash;
-console.log("--- this one ---");
-console.log(sellerPkh);
+const sellerPkh: string = await lucid.utils.getAddressDetails(sellerAddress).paymentCredential.hash;
+// console.log("--- this one ---");
+// console.log(sellerPkh);
 
-const nftPid = "03297d490454ee1aab8739012af48e0800e9607d066b8e108a8a2885";
-const nftTokenName =  "4239385f5061727479";
+const nftPid = "0bd99854f6e41dfc4bfeb9dd6fb159d11c1ca5dff771de614dbf5fec";
+const nftTokenName =  "45416e667431";
 const nftAsset = toUnit(nftPid, nftTokenName);
+
+
 
 console.log("Auction Validator");
 console.log(auctionValidator);
 console.log("---");
 console.log(auctionAddress);
-console.log("---");
-console.log(sellerPkh);
-console.log("---");
-console.log(nftAsset);
+// console.log("---");
+// console.log(sellerPkh);
+// console.log("---");
+// console.log(nftAsset);
 
 
 const datumBegin = Data.to(new Constr (0, [[nftPid, nftTokenName, BigInt(1)],
                                             sellerPkh,
                                             BigInt(10000000),
-                                            BigInt(Date.now() + 6000000),  //10min from the moment of placing the bid
-                                            new Constr(1, []),
+                                            BigInt(Date.now() + 18000000),  //10min from the moment of placing the bid
+                                            BigInt(0),
                                             ""]) );
 
 const revereseDatum = Data.from(datumBegin);
@@ -80,10 +82,10 @@ const revereseDatum = Data.from(datumBegin);
 //                  penaltyAddress.data, // penaltyAddress PAddress
 // ]); 
 
-console.log("---");
-console.log(datumBegin);
-console.log("---");
-console.log(revereseDatum);
+// console.log("---");
+// console.log(datumBegin);
+// console.log("---");
+// console.log(revereseDatum);
 
 const createAuction = async (): Promise<Result<any>> => {
   try {

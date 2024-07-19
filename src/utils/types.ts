@@ -14,7 +14,7 @@ export type Result<T> =
 //           description?: string;
 //           hash?: string;
 //           nom?: string;
-//           apes?: string;
+//           apes?: string;current_bid
 //         };
 //       };
 //     };

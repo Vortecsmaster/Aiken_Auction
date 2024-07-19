@@ -109,9 +109,20 @@ const utxos = [utxo];
 //console.log(utxos);
 
 const placeBid = async (daBid: number): Promise<Result<any>> => {
-const redeemerBid = Data.to(new Constr(0, [
-                                          new Constr(0, [bidderPkh, BigInt(daBid)])
-                                          ]));
+
+const bidSchema = Data.Object({
+    "bidder": Data.String,
+    "amount": Data.BigInt,
+  });
+
+type RedeemerBid = Data.Static<typeof bidSchema>;
+const RedeemerBid = bidSchema as unknown as RedeemerBid;
+
+const redeemerBid = Data.to(new Constr(0, RedeemerBid({bidder: bidderPkh, amount: BigInt(daBid)})));
+
+// const redeemerBid = Data.to(new Constr(0, [
+//                                           new Constr(0, [bidderPkh, BigInt(daBid)])
+//                                           ]));
 
 // UnConstrData:Con(Data(BigInt(Int(Int(Int {neg: false,val: 0,},),),),)
 
@@ -125,31 +136,31 @@ const redeemerBid = Data.to(new Constr(0, [
                                           BigInt(1721358634917), 
                                           new Constr(0, [new Constr(0, [bidderPkh,BigInt(daBid)]) ]),
                                           bidderPkh]) );
-   try {
-    const tx: any = await lucid
-      .newTx()
-      .collectFrom(utxos, redeemerBid)
-      .attachSpendingValidator(auctionValidator)
-      .payToContract(auctionAddress, newDatum, {[nftAsset]: BigInt(1), lovelace: BigInt(2200000)})
-      .complete();
+//    try {
+//     const tx: any = await lucid
+//       .newTx()
+//       .collectFrom(utxos, redeemerBid)
+//       .attachSpendingValidator(auctionValidator)
+//       .payToContract(auctionAddress, newDatum, {[nftAsset]: BigInt(1), lovelace: BigInt(2200000)})
+//       .complete();
 
-    // const signedTx = await tx.sign().complete();
-    // const txHash = await signedTx.submit();
-    // const success = await lucid!.awaitTx(txHash)
+//     // const signedTx = await tx.sign().complete();
+//     // const txHash = await signedTx.submit();
+//     // const success = await lucid!.awaitTx(txHash)
 
-    console.log(tx);
-    //console.log(signedTx);
-    // console.log(txHash);
+//     console.log(tx);
+//     //console.log(signedTx);
+//     // console.log(txHash);
 
-    console.log("Placing bid...");
-    return { type: "ok", data: signedTx };
-    // return { type: "ok", data: txHash };
+//     console.log("Placing bid...");
+//     return { type: "ok", data: tx };
+//     // return { type: "ok", data: txHash };
 
-  } catch (error) {
-    if (error instanceof Error) return { type: "error", error: error };
-    return { type: "error", error: new Error(`${JSON.stringify(error)}`) };
-  }
+//   } catch (error) {
+//     if (error instanceof Error) return { type: "error", error: error };
+//     return { type: "error", error: new Error(`${JSON.stringify(error)}`) };
+//   }
 }
 
-const demo = await placeBid(15000000);
-console.log(demo);
+ const demo = await placeBid(15000000);
+ console.log(demo);

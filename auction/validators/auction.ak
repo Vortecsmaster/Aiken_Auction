@@ -10,43 +10,50 @@ use aiken/transaction/value.{
 }
 use auction/types.{PubKeyHash}
 
-type Bid {
-  bidder_pkh: PubKeyHash,
-  bid_amt: Int,
-}
-
 type AuctionDatum {
   asset_value: (PolicyId, AssetName, Int),
   seller_pkh: PubKeyHash,
   min_bid: Int,
   end_time: PosixTime,
-  current_bid: Option<Bid>,
+  current_bid: Int,
+  bidder_pkh: PubKeyHash,
 }
 
 // Redeemer representing user action
-type Redeemer {
-  PlaceBid(Bid)
-  PayOut
+type AuctionRedeemer {
+  action: Int,
+  bid: Int,
+  bidder_pkh: PubKeyHash,
 }
+
+// Actions
+// 0: PlaceBid
+// 1: PayOut
+// 2: Cancel
 
 // The auction validator
 validator {
   fn auction(
     auction_state: AuctionDatum,
-    user_action: Redeemer,
+    user_action: AuctionRedeemer,
     ctx: ScriptContext,
   ) -> Bool {
-    when user_action is {
-      PlaceBid(new_bid) ->
+    when user_action.action is {
+      0 ->
         timelimit_not_reached(auction_state, ctx) && when
           auction_state.current_bid
         is {
           // If first bid, must be at least min big specified in config
-          None -> new_bid.bid_amt >= auction_state.min_bid
-          Some(curr_bid) ->
+          0 -> user_action.bid >= auction_state.min_bid
+          _ ->
             // new bid is at least 1% higher than previous high
-            new_bid.bid_amt >= curr_bid.bid_amt + curr_bid.bid_amt / 100 && // refunds the previous bidder
-            refunds_previous(ctx.transaction.outputs, auction_state) && // includes correct continuing output
+            user_action.bid >= auction_state.current_bid + auction_state.current_bid / 100 && // refunds the previous bidder
+            refunds_previous(
+              ctx.transaction.outputs,
+              auction_state,
+              user_action.bid,
+              user_action.bidder_pkh,
+            ) && // includes correct continuing output
             valid_cont_output(
               ctx,
               from_asset(
@@ -54,20 +61,16 @@ validator {
                 auction_state.asset_value.2nd,
                 auction_state.asset_value.3rd,
               ),
-              new_bid,
+              user_action.bid,
+              user_action.bidder_pkh,
             )
         }
-      PayOut ->
+      1 ->
         // End time has passed
-        contains(ctx.transaction.validity_range, auction_state.end_time) && // Pays to the seller
-        pays_seller(
-          ctx.transaction.outputs,
-          auction_state.seller_pkh,
-          auction_state,
-        ) && // Pays the asset to high bidder
+        !contains(ctx.transaction.validity_range, auction_state.end_time) && // Pays to the seller
+        pays_seller(ctx.transaction.outputs, auction_state) && // Pays the asset to high bidder
         pays_asset_value(
           ctx.transaction.outputs,
-          auction_state.seller_pkh,
           from_asset(
             auction_state.asset_value.1st,
             auction_state.asset_value.2nd,
@@ -75,6 +78,7 @@ validator {
           ),
           auction_state,
         )
+      _ -> False
     }
   }
 }
@@ -102,37 +106,37 @@ fn pays_ada(
   pays_value(receiver_pkh, bid_val, outputs)
 }
 
-fn refunds_previous(outputs: List<Output>, bid_state: AuctionDatum) -> Bool {
+fn refunds_previous(
+  outputs: List<Output>,
+  bid_state: AuctionDatum,
+  bid: Int,
+  bidder_pkh: PubKeyHash,
+) -> Bool {
   when bid_state.current_bid is {
-    Some(bid) -> pays_ada(bid.bid_amt, outputs, bid.bidder_pkh)
-    None -> True
+    0 -> True
+    _ -> pays_ada(bid, outputs, bidder_pkh)
   }
 }
 
-fn pays_seller(
-  outputs: List<Output>,
-  seller_pkh: PubKeyHash,
-  bid_state: AuctionDatum,
-) -> Bool {
+fn pays_seller(outputs: List<Output>, bid_state: AuctionDatum) -> Bool {
   when bid_state.current_bid is {
-    Some(bid) -> pays_ada(bid.bid_amt, outputs, seller_pkh)
-    None -> True
+    0 -> True
+    _ -> pays_ada(bid_state.current_bid, outputs, bid_state.seller_pkh)
   }
 }
 
 fn pays_asset_value(
   outputs: List<Output>,
-  seller_pkh: PubKeyHash,
   asset_value: Value,
   // from_asset(policy_id: PolicyId, asset_name: AssetName, quantity: Int) -> Value
   bid_state: AuctionDatum,
 ) -> Bool {
   let recipient_pkh =
     when bid_state.current_bid is {
+      0 -> bid_state.seller_pkh
+      // If no bid, pay asset to seller
       // If bid, pay asset to current high bidder
-      Some(bid) -> bid.bidder_pkh
-      // Else seller reclaims asset
-      None -> seller_pkh
+      _ -> bid_state.bidder_pkh
     }
   pays_value(recipient_pkh, asset_value, outputs)
 }
@@ -156,17 +160,16 @@ fn get_continuing_outputs(ctx: ScriptContext) -> List<Output> {
 fn valid_cont_output(
   ctx: ScriptContext,
   target_value: Value,
-  target_bid: Bid,
+  target_bid: Int,
+  target_bidder_pkh: PubKeyHash,
 ) -> Bool {
   expect [cont_output] = get_continuing_outputs(ctx)
   // check correct continuing output value
-  if
-  cont_output.value == merge(target_value, from_lovelace(target_bid.bid_amt)){
-  
+  if cont_output.value == merge(target_value, from_lovelace(target_bid)) {
     // check correct continuing output datum
-    expect InlineDatum(new_bid_state) = cont_output.datum
-    expect Some(new_bid): Option<Bid> = new_bid_state
-    new_bid.bidder_pkh == target_bid.bidder_pkh && new_bid.bid_amt == target_bid.bid_amt
+    expect InlineDatum(new_auction_state) = cont_output.datum
+    expect theDatum: AuctionDatum = new_auction_state
+    theDatum.bidder_pkh == target_bidder_pkh && theDatum.current_bid == target_bid
   } else {
     False
   }
