@@ -31,12 +31,12 @@ const lucid: Lucid = await Lucid.new(
 
 
 // Prepare wallets que hara el bid
-const signingKey2 = await Deno.readTextFile("../wallets/test02.skey")
+const signingKey3 = await Deno.readTextFile("../wallets/test03.skey")
 
-const address2 = await lucid
-   .selectWalletFromPrivateKey(signingKey2)
+const address3 = await lucid
+   .selectWalletFromPrivateKey(signingKey3)
    .wallet.address();
-   const bidderPkh: string = await lucid.utils.getAddressDetails(address2).paymentCredential.hash;
+   const bidderPkh: string = await lucid.utils.getAddressDetails(address3).paymentCredential.hash;
 
 
 // console.log(address2);
@@ -62,29 +62,21 @@ console.log(nftAsset);
 const deadline = BigInt(1721396599773)
 
 const previousDatumAuction = Data.to(new Constr (0, [[nftPid, nftTokenName, BigInt(1)],
-                                             "37396a04dff5f5b48d1ab4f3f93fd95c3978a193bb280738a86d084f",
-                                             BigInt(10000000),
-                                             deadline, 
-                                             BigInt(0),
-                                             "",]) );
+                                    "37396a04dff5f5b48d1ab4f3f93fd95c3978a193bb280738a86d084f",
+                                    BigInt(10000000),
+                                    deadline, 
+                                    BigInt(15000000),
+                                    "5142a9162d7bf864d26dd22f5ed7f794d708e3d6972341e70a417cfa"]) );
 
 //const revereseDatum = Data.from(datumBegin);
-
-
-
 
 console.log("---");
 console.log(previousDatumAuction);
 // console.log("---");
 // console.log(revereseDatum);
-// const redeemerBid = Data.to(new Constr(0, [
-//                                           new Constr(0, [bidderPkh, BigInt(daBid)])
-//                                           ]));
-
-// UnConstrData:Con(Data(BigInt(Int(Int(Int {neg: false,val: 0,},),),),)
 
 
-//-------
+
 const foundUTxOs = await lucid.utxosAtWithUnit(auctionAddress,nftAsset);
   let utxo = foundUTxOs[0];
   utxo.datum = previousDatumAuction;
@@ -95,15 +87,27 @@ const foundUTxOs = await lucid.utxosAtWithUnit(auctionAddress,nftAsset);
 
  console.log(utxos);
 
- const placeBid = async (daBid: number): Promise<Result<any>> => {
+const placeBid = async (daBid: number): Promise<Result<any>> => {
 
+// const bidSchema = Data.Object({
+//     "bidder": Data.String,
+//     "amount": Data.BigInt,
+//   });
 
- const redeemerBid = Data.to(new Constr(0, [BigInt(0), BigInt(daBid), bidderPkh]));
+// type RedeemerBid = Data.Static<typeof bidSchema>;
+// const RedeemerBid = bidSchema as unknown as RedeemerBid;
 
+const redeemerBid = Data.to(new Constr(0, [BigInt(0), BigInt(daBid), bidderPkh]));
+
+// const redeemerBid = Data.to(new Constr(0, [
+//                                           new Constr(0, [bidderPkh, BigInt(daBid)])
+//                                           ]));
+
+// UnConstrData:Con(Data(BigInt(Int(Int(Int {neg: false,val: 0,},),),),)
 
 console.log(redeemerBid);
 console.log("---");
-console.log(Data.from(redeemerBid));
+//console.log(Data.from(redeemerBid));
 
  const newDatum = Data.to(new Constr (0, [[nftPid, nftTokenName, BigInt(1)],
                                           "37396a04dff5f5b48d1ab4f3f93fd95c3978a193bb280738a86d084f",
@@ -119,7 +123,7 @@ console.log(Data.from(redeemerBid));
       .collectFrom(utxos, redeemerBid)
       .attachSpendingValidator(auctionValidator)
       .payToContract(auctionAddress, newDatum, {[nftAsset]: BigInt(1), lovelace: BigInt(2200000)})
-      .validTo(Date.now() + 180000)
+      .validTo(Date.now() + 20000)
       .complete();
 
     const signedTx = await tx.sign().complete();
@@ -140,5 +144,5 @@ console.log(Data.from(redeemerBid));
   }
 }
 
- const demo = await placeBid(15000000);
+ const demo = await placeBid(25000000);
  console.log(demo);

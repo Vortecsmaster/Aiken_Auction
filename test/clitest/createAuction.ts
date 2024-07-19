@@ -50,8 +50,8 @@ const sellerPkh: string = await lucid.utils.getAddressDetails(sellerAddress).pay
 // console.log("--- this one ---");
 // console.log(sellerPkh);
 
-const nftPid = "0bd99854f6e41dfc4bfeb9dd6fb159d11c1ca5dff771de614dbf5fec";
-const nftTokenName =  "45416e667431";
+const nftPid = "d928bcb675e81baed8e7c66e136a6f92f340363d9601cc934a0d1670";
+const nftTokenName =  "426f624d65636861";
 const nftAsset = toUnit(nftPid, nftTokenName);
 
 
@@ -69,18 +69,11 @@ console.log(auctionAddress);
 const datumBegin = Data.to(new Constr (0, [[nftPid, nftTokenName, BigInt(1)],
                                             sellerPkh,
                                             BigInt(10000000),
-                                            BigInt(Date.now() + 18000000),  //10min from the moment of placing the bid
+                                            BigInt(Date.now() + 360000),  //10min from the moment of placing the bid
                                             BigInt(0),
                                             ""]) );
 
 const revereseDatum = Data.from(datumBegin);
-
-// new Constr(0, [
-//   new Constr(0, [new Constr(0, ["4fb451485056a49b61f65dcc405fcdd2ccb5b9437c073e2ad340b56e09030986"]),
-//                                 BigInt(3)]), // treasury UTxO
-//                  BigInt(deadline24h), // discoveryDeadline PInteger
-//                  penaltyAddress.data, // penaltyAddress PAddress
-// ]); 
 
 // console.log("---");
 // console.log(datumBegin);

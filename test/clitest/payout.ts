@@ -32,6 +32,7 @@ const lucid: Lucid = await Lucid.new(
 
 // Prepare wallets que hara el bid
 const signingKey2 = await Deno.readTextFile("../wallets/test02.skey")
+const signingKey3 = await Deno.readTextFile("../wallets/test03.skey")
 
 const address2 = await lucid
    .selectWalletFromPrivateKey(signingKey2)
@@ -49,8 +50,8 @@ const auctionValidator: SpendingValidator = await readNoParamsValidator("../../a
 const auctionAddress: string = await lucid.utils.validatorToAddress(auctionValidator);
 
 
-const nftPid = "d928bcb675e81baed8e7c66e136a6f92f340363d9601cc934a0d1670";
-const nftTokenName =  "426f624d65636861";
+const nftPid = "0bd99854f6e41dfc4bfeb9dd6fb159d11c1ca5dff771de614dbf5fec";
+const nftTokenName =  "45416e667431";
 const nftAsset = toUnit(nftPid, nftTokenName);
 
 console.log(auctionValidator);
@@ -59,12 +60,11 @@ console.log(auctionAddress);
 console.log("---");
 console.log(nftAsset);
 
-const deadline = BigInt(1721396599773)
 
 const previousDatumAuction = Data.to(new Constr (0, [[nftPid, nftTokenName, BigInt(1)],
                                              "37396a04dff5f5b48d1ab4f3f93fd95c3978a193bb280738a86d084f",
                                              BigInt(10000000),
-                                             deadline, 
+                                             BigInt(1721400230637), 
                                              BigInt(0),
                                              "",]) );
 
@@ -77,12 +77,26 @@ console.log("---");
 console.log(previousDatumAuction);
 // console.log("---");
 // console.log(revereseDatum);
-// const redeemerBid = Data.to(new Constr(0, [
-//                                           new Constr(0, [bidderPkh, BigInt(daBid)])
-//                                           ]));
 
-// UnConstrData:Con(Data(BigInt(Int(Int(Int {neg: false,val: 0,},),),),)
+// utxosAt(addressOrCredential: Address | Credential): Promise<UTxO[]> {
+//   return this.provider.getUtxos(addressOrCredential);
+// }
 
+// utxosAtWithUnit(
+//   addressOrCredential: Address | Credential,
+//   unit: Unit,
+// ): Promise<UTxO[]> {
+//   return this.provider.getUtxosWithUnit(addressOrCredential, unit);
+// }
+
+// /** Unit needs to be an NFT (or optionally the entire supply in one UTxO). */
+// utxoByUnit(unit: Unit): Promise<UTxO> {
+//   return this.provider.getUtxoByUnit(unit);
+// }
+
+// utxosByOutRef(outRefs: Array<OutRef>): Promise<UTxO[]> {
+//   return this.provider.getUtxosByOutRef(outRefs);
+// }
 
 //-------
 const foundUTxOs = await lucid.utxosAtWithUnit(auctionAddress,nftAsset);
@@ -95,11 +109,23 @@ const foundUTxOs = await lucid.utxosAtWithUnit(auctionAddress,nftAsset);
 
  console.log(utxos);
 
- const placeBid = async (daBid: number): Promise<Result<any>> => {
+const placeBid = async (daBid: number): Promise<Result<any>> => {
 
+// const bidSchema = Data.Object({
+//     "bidder": Data.String,
+//     "amount": Data.BigInt,
+//   });
 
- const redeemerBid = Data.to(new Constr(0, [BigInt(0), BigInt(daBid), bidderPkh]));
+// type RedeemerBid = Data.Static<typeof bidSchema>;
+// const RedeemerBid = bidSchema as unknown as RedeemerBid;
 
+const redeemerBid = Data.to(new Constr(0, [BigInt(0), BigInt(daBid), bidderPkh]));
+
+// const redeemerBid = Data.to(new Constr(0, [
+//                                           new Constr(0, [bidderPkh, BigInt(daBid)])
+//                                           ]));
+
+// UnConstrData:Con(Data(BigInt(Int(Int(Int {neg: false,val: 0,},),),),)
 
 console.log(redeemerBid);
 console.log("---");
@@ -108,7 +134,7 @@ console.log(Data.from(redeemerBid));
  const newDatum = Data.to(new Constr (0, [[nftPid, nftTokenName, BigInt(1)],
                                           "37396a04dff5f5b48d1ab4f3f93fd95c3978a193bb280738a86d084f",
                                           BigInt(10000000),
-                                          deadline, 
+                                          BigInt(1721358634917), 
                                           BigInt(daBid),
                                           bidderPkh]) );
   console.log(newDatum);
@@ -130,7 +156,7 @@ console.log(Data.from(redeemerBid));
 //     console.log(signedTx);
 //     // console.log(txHash);
 
-     console.log("Placing bid...");
+//     console.log("Placing bid...");
 //    return { type: "ok", data: "ok" };
       return { type: "ok", data: txHash };
 
