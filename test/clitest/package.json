@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@lucid-evolution/lucid": "^0.3.8"
+  }
+}

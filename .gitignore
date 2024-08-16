@@ -14,3 +14,4 @@ Cargo.lock
 *.pdb
 auction/aiken.lock
 auction/plutus.json
+/test/clitest/node_modules
