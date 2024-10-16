@@ -1,7 +1,7 @@
 use aiken/collection/list
 use aiken/crypto.{VerificationKeyHash}
 use aiken/interval
-use auction/types.{AuctionDatum, AuctionRedeemer}
+use auction/types.{AuctionerDatum, AuctionerRedeemer}
 use cardano/address
 use cardano/assets.{Value}
 use cardano/transaction.{
@@ -11,21 +11,29 @@ use cardano/transaction.{
 /// The Auction Validator
 ///
 /// Actions:
-/// - 0: PlaceBid
-/// - 1: PayOut
-/// - 2: Cancel
-validator auction {
+/// - 0: Cancel Auction - Tx2
+/// - 1: PlaceBid - Tx3, Tx4
+/// - 2: Payout, Tx5
+/// 
+validator auctioner {
   spend(
-    auction_datum: Option<AuctionDatum>,
-    user_action: AuctionRedeemer,
+    auction_datum: Option<AuctionerDatum>,
+    user_action: AuctionerRedeemer,
     target_output_ref: OutputReference,
-    transaction: Transaction,
+    tx_info: Transaction,
   ) {
     expect Some(auction_state) = auction_datum
     when user_action.action is {
+      // Cancel Auction
+      0 ->
+        theres_no_bid(auction_state) && nft_to_seller(
+          auction_state,
+          target_output_ref,
+          tx_info,
+        )
       // PlaceBid:
-      0 -> and {
-          time_limit_not_reached(auction_state, transaction),
+      1 -> and {
+          time_limit_not_reached(auction_state, tx_info),
           when auction_state.current_bid is {
             // If first bid, must be at least min big specified in config:
             0 -> user_action.bid >= auction_state.min_bid
@@ -35,36 +43,36 @@ validator auction {
                 user_action.bid >= auction_state.current_bid + auction_state.current_bid / 100,
                 // refunds the previous bidder:
                 refunds_previous(
-                  transaction.outputs,
+                  tx_info.outputs,
                   auction_state,
                   user_action.bid,
-                  user_action.bidder_pkh,
+                  user_action.bidder_vkh,
                 ),
                 // includes correct continuing output:
                 valid_cont_output(
                   target_output_ref,
-                  transaction,
+                  tx_info,
                   assets.from_asset(
                     auction_state.asset_value.1st,
                     auction_state.asset_value.2nd,
                     auction_state.asset_value.3rd,
                   ),
                   user_action.bid,
-                  user_action.bidder_pkh,
+                  user_action.bidder_vkh,
                 ),
               }
           },
         }
 
       // PayOut:
-      1 -> and {
+      2 -> and {
           // End time has passed:
-          !interval.contains(transaction.validity_range, auction_state.end_time),
+          !interval.contains(tx_info.validity_range, auction_state.end_time),
           // Pays to the seller:
-          pays_seller(transaction.outputs, auction_state),
+          pays_seller(tx_info.outputs, auction_state),
           // Pays the asset to high bidder:
           pays_asset_value(
-            transaction.outputs,
+            tx_info.outputs,
             assets.from_asset(
               auction_state.asset_value.1st,
               auction_state.asset_value.2nd,
@@ -84,15 +92,34 @@ validator auction {
   }
 }
 
+fn theres_no_bid(auction_state: AuctionerDatum) -> Bool {
+  auction_state.current_bid == 0
+}
+
+fn nft_to_seller(
+  auction_datum: AuctionerDatum,
+  target_utxo: OutputReference,
+  tx_info: Transaction,
+) -> Bool {
+  // find input output 
+  let input_utxo = find_validating_input(target_utxo, tx_info)
+  let out_utxo: Output <- list.filter(tx_info.outputs)
+  out_utxo.address == script_address
+  and {
+    out.value == assets.from_lovelace(0),
+    out.datum == InlineDatum(auction_datum),
+  }
+}
+
 fn pays_value(
-  receiver_pkh: VerificationKeyHash,
+  receiver_vkh: VerificationKeyHash,
   target_value: Value,
   outputs: List<Output>,
 ) -> Bool {
   // Look for a matching output that satisfies the helper
   let out: Output <- list.any(outputs)
   and {
-    out.address == address.from_verification_key(receiver_pkh),
+    out.address == address.from_verification_key(receiver_vkh),
     out.value == target_value,
   }
 }
@@ -100,28 +127,28 @@ fn pays_value(
 fn pays_ada(
   bid_amt: Int,
   outputs: List<Output>,
-  receiver_pkh: VerificationKeyHash,
+  receiver_vkh: VerificationKeyHash,
 ) -> Bool {
   let bid_val = assets.from_lovelace(bid_amt)
-  pays_value(receiver_pkh, bid_val, outputs)
+  pays_value(receiver_vkh, bid_val, outputs)
 }
 
 fn refunds_previous(
   outputs: List<Output>,
-  bid_state: AuctionDatum,
+  bid_state: AuctionerDatum,
   bid: Int,
-  bidder_pkh: VerificationKeyHash,
+  bidder_vkh: VerificationKeyHash,
 ) -> Bool {
   when bid_state.current_bid is {
     0 -> True
-    _ -> pays_ada(bid, outputs, bidder_pkh)
+    _ -> pays_ada(bid, outputs, bidder_vkh)
   }
 }
 
-fn pays_seller(outputs: List<Output>, bid_state: AuctionDatum) -> Bool {
+fn pays_seller(outputs: List<Output>, bid_state: AuctionerDatum) -> Bool {
   when bid_state.current_bid is {
     0 -> True
-    _ -> pays_ada(bid_state.current_bid, outputs, bid_state.seller_pkh)
+    _ -> pays_ada(bid_state.current_bid, outputs, bid_state.seller_vkh)
   }
 }
 
@@ -129,24 +156,23 @@ fn pays_asset_value(
   outputs: List<Output>,
   asset_value: Value,
   // from_asset(policy_id: PolicyId, asset_name: AssetName, quantity: Int) -> Value
-  bid_state: AuctionDatum,
+  bid_state: AuctionerDatum,
 ) -> Bool {
-  let recipient_pkh =
+  let recipient_vkh =
     when bid_state.current_bid is {
-      0 -> bid_state.seller_pkh
+      0 -> bid_state.seller_vkh
       // If no bid, pay asset to seller
       // If bid, pay asset to current high bidder
-      _ -> bid_state.bidder_pkh
+      _ -> bid_state.bidder_vkh
     }
-  pays_value(recipient_pkh, asset_value, outputs)
+  pays_value(recipient_vkh, asset_value, outputs)
 }
 
 fn find_validating_input(
   target_output_ref: OutputReference,
-  transaction: Transaction,
+  tx_info: Transaction,
 ) -> Input {
-  expect Some(input) =
-    transaction.find_input(transaction.inputs, target_output_ref)
+  expect Some(input) = transaction.find_input(tx_info.inputs, target_output_ref)
 
   // Now return the input:
   input
@@ -154,24 +180,24 @@ fn find_validating_input(
 
 fn get_continuing_outputs(
   target_output_ref: OutputReference,
-  transaction: Transaction,
+  tx_info: Transaction,
 ) -> List<Output> {
-  let input = find_validating_input(target_output_ref, transaction)
+  let input = find_validating_input(target_output_ref, tx_info)
   let script_address = input.output.address
 
   // Back-passing:
-  let out: Output <- list.filter(transaction.outputs)
+  let out: Output <- list.filter(tx_info.outputs)
   out.address == script_address
 }
 
 fn valid_cont_output(
   target_output_ref: OutputReference,
-  transaction: Transaction,
+  tx_info: Transaction,
   target_value: Value,
   target_bid: Int,
-  target_bidder_pkh: VerificationKeyHash,
+  target_bidder_vkh: VerificationKeyHash,
 ) -> Bool {
-  expect [cont_output] = get_continuing_outputs(target_output_ref, transaction)
+  expect [cont_output] = get_continuing_outputs(target_output_ref, tx_info)
 
   // check correct continuing output value
   if cont_output.value == assets.merge(
@@ -180,10 +206,10 @@ fn valid_cont_output(
   ) {
     // check correct continuing output datum
     expect InlineDatum(new_auction_state) = cont_output.datum
-    expect the_datum: AuctionDatum = new_auction_state
+    expect the_datum: AuctionerDatum = new_auction_state
 
     and {
-      (the_datum.bidder_pkh == target_bidder_pkh)?,
+      (the_datum.bidder_vkh == target_bidder_vkh)?,
       (the_datum.current_bid == target_bid)?,
     }
   } else {
@@ -193,9 +219,9 @@ fn valid_cont_output(
 }
 
 fn time_limit_not_reached(
-  auction_state: AuctionDatum,
-  transaction: Transaction,
+  auction_state: AuctionerDatum,
+  tx_info: Transaction,
 ) -> Bool {
-  transaction.validity_range
+  tx_info.validity_range
     |> interval.contains(auction_state.end_time)
 }

@@ -1,10 +1,12 @@
-name = "rcerrud/auction"
-version = "0.0.0"
+name = "vortecsmaster/auction"
+version = "0.1.0"
+compiler = "v1.1.4"
+plutus = "v3"
 license = "Apache-2.0"
-description = "Aiken contracts for project 'rcerrud/auction'"
+description = "Aiken contracts for project 'vortecsmaster/auction'"
 
 [repository]
-user = "rcerrud"
+user = "vortecsmaster"
 project = "auction"
 platform = "github"
 
