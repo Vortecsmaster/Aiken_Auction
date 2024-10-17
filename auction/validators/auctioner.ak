@@ -1,9 +1,9 @@
-use aiken/collection/list
+use aiken/collection/list.{filter, length}
 use aiken/crypto.{VerificationKeyHash}
 use aiken/interval
 use auction/types.{AuctionerDatum, AuctionerRedeemer}
-use cardano/address
-use cardano/assets.{Value}
+use cardano/address.{Address}
+use cardano/assets.{Value, quantity_of}
 use cardano/transaction.{
   InlineDatum, Input, Output, OutputReference, Transaction,
 }
@@ -26,11 +26,11 @@ validator auctioner {
     when user_action.action is {
       // Cancel Auction
       0 ->
-        theres_no_bid(auction_state) && nft_to_seller(
+        theres_no_bid(auction_state)? && nft_to_seller(
           auction_state,
           target_output_ref,
           tx_info,
-        )
+        )?
       // PlaceBid:
       1 -> and {
           time_limit_not_reached(auction_state, tx_info),
@@ -97,17 +97,35 @@ fn theres_no_bid(auction_state: AuctionerDatum) -> Bool {
 }
 
 fn nft_to_seller(
-  auction_datum: AuctionerDatum,
+  datum: AuctionerDatum,
   target_utxo: OutputReference,
   tx_info: Transaction,
 ) -> Bool {
-  // find input output 
+  // find input's utxo data 
   let input_utxo = find_validating_input(target_utxo, tx_info)
-  let out_utxo: Output <- list.filter(tx_info.outputs)
-  out_utxo.address == script_address
+  // Checking the NFT in the input UTxO
   and {
-    out.value == assets.from_lovelace(0),
-    out.datum == InlineDatum(auction_datum),
+    quantity_of(
+      input_utxo.output.value,
+      datum.asset_value.1st,
+      datum.asset_value.2nd,
+    ) == 1,
+    // Checking the NFT in the output UTxO
+    length(
+      filter(
+        tx_info.outputs,
+        fn(utxo) {
+          and {
+            quantity_of(
+              utxo.value,
+              datum.asset_value.1st,
+              datum.asset_value.2nd,
+            ) == 1,
+            utxo.address == datum.seller_address,
+          }
+        },
+      ),
+    ) == 1,
   }
 }
 

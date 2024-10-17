@@ -1,10 +1,12 @@
 use aiken/crypto.{VerificationKeyHash}
+use cardano/address.{Address}
 use cardano/assets.{AssetName, PolicyId}
 
 /// Auction Datum
 pub type AuctionerDatum {
   asset_value: (PolicyId, AssetName, Int),
   seller_vkh: VerificationKeyHash,
+  seller_address: Address,
   min_bid: Int,
   end_time: Int,
   current_bid: Int,
