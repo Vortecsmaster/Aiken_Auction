@@ -1,11 +1,11 @@
 use aiken/collection/list.{filter, length}
 use aiken/crypto.{VerificationKeyHash}
-use aiken/interval
-use auction/types.{AuctionerDatum, AuctionerRedeemer}
-use cardano/address.{Address}
+use aiken/interval.{Finite}
+use auction/types.{AuctionerDatum, AuctionerRedeemer, POSIXtime}
+use cardano/address
 use cardano/assets.{Value, quantity_of}
 use cardano/transaction.{
-  InlineDatum, Input, Output, OutputReference, Transaction,
+  InlineDatum, Input, Output, OutputReference, Transaction, ValidityRange,
 }
 
 /// The Auction Validator
@@ -33,7 +33,9 @@ validator auctioner {
         )?
       // PlaceBid:
       1 -> and {
-          time_limit_not_reached(auction_state, tx_info),
+          time_limit_not_reached(tx_info.validity_range, auction_state.end_time)?,
+          trace @"Current bid": auction_state.current_bid
+          trace @"User bid": user_action.bid
           when auction_state.current_bid is {
             // If first bid, must be at least min big specified in config:
             0 -> user_action.bid >= auction_state.min_bid
@@ -236,10 +238,14 @@ fn valid_cont_output(
   }
 }
 
-fn time_limit_not_reached(
-  auction_state: AuctionerDatum,
-  tx_info: Transaction,
-) -> Bool {
-  tx_info.validity_range
-    |> interval.contains(auction_state.end_time)
+fn time_limit_not_reached(range: ValidityRange, deadline: POSIXtime) -> Bool {
+  trace @"End time": deadline
+  trace @"Validity range": range
+  when range.upper_bound.bound_type is {
+    Finite(tx_latest_time) -> (tx_latest_time < deadline)?
+    _ -> {
+      trace @"Non-finite interval in tx definition"
+      False
+    }
+  }
 }

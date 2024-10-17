@@ -2,13 +2,16 @@ use aiken/crypto.{VerificationKeyHash}
 use cardano/address.{Address}
 use cardano/assets.{AssetName, PolicyId}
 
+pub type POSIXtime =
+  Int
+
 /// Auction Datum
 pub type AuctionerDatum {
   asset_value: (PolicyId, AssetName, Int),
   seller_vkh: VerificationKeyHash,
   seller_address: Address,
   min_bid: Int,
-  end_time: Int,
+  end_time: POSIXtime,
   current_bid: Int,
   bidder_vkh: VerificationKeyHash,
 }
