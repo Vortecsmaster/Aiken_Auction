@@ -38,7 +38,7 @@ export default function Seller() {
     if (!utxos.length) throw "No Auction";
 
     let auctionDatum: DatumType | undefined;
-    const pkh = `${getAddressDetails(address).paymentCredential?.hash}`;
+    const pkh = getAddressDetails(address).paymentCredential?.hash ?? "";
     const utxo = utxos.find((utxo) => {
       const datum = Data.from(`${utxo.datum}`, DatumType);
       if (datum.sellerVKH === pkh) {

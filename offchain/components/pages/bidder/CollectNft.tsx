@@ -19,7 +19,7 @@ export default function CollectNft(props: { auction: AuctionData }) {
 
   const [isCollected, setIsCollected] = useState(false);
 
-  const beforeDeadline = () => parseInt(`${endTime}`) > new Date().getTime();
+  const beforeDeadline = () => endTime > BigInt(new Date().getTime());
 
   /**
    * Collect an NFT

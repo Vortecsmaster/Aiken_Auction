@@ -15,7 +15,7 @@ export default function BidNft(props: { auction: AuctionData; onRefresh: () => v
   const { unit, policyID, assetName, qty, utxo, bf } = assetUTxO!;
   const { endTime } = datum!;
 
-  const beforeDeadline = () => parseInt(`${endTime}`) > new Date().getTime();
+  const beforeDeadline = () => endTime > BigInt(new Date().getTime());
   const afterDeadline = () => !beforeDeadline();
 
   const [{ lucid, network, address }] = useWallet();

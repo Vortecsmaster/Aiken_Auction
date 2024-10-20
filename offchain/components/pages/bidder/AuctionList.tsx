@@ -63,8 +63,8 @@ export default function AuctionList() {
     );
 
   function formatLovelace(lovelace: bigint) {
-    const str = "000000" + `${lovelace}`;
-    return str.slice(str.length - 6);
+    const leftPadZeroes = "000000" + `${lovelace}`;
+    return leftPadZeroes.slice(leftPadZeroes.length - 6);
   }
 
   return (
@@ -82,7 +82,7 @@ export default function AuctionList() {
           {auctionList.map((auction, a) => {
             if (!address) return <></>;
 
-            const pkh = `${getAddressDetails(address).paymentCredential?.hash}`;
+            const pkh = getAddressDetails(address).paymentCredential?.hash ?? "";
             return (
               <TableRow key={`auction.${a}`}>
                 {/* NFT */}
