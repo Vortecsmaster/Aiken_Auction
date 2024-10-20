@@ -16,8 +16,8 @@ export default function NftList() {
   useEffect(() => {
     lucid
       ?.wallet()
-      .getUtxos()
-      .then(async (utxos) => {
+      ?.getUtxos()
+      ?.then(async (utxos) => {
         let walletAssets: Record<Unit, AssetUTxO> = {};
         for (const utxo of utxos) {
           const { assets } = utxo;
@@ -62,7 +62,7 @@ export default function NftList() {
         });
         setAssetUTXOs(nfts);
       })
-      .catch(handleError);
+      ?.catch(handleError);
   }, []);
 
   if (!assetUTXOs)

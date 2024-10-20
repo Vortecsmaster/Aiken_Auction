@@ -27,7 +27,7 @@ export default function AuctionList() {
   function lookForAuctions() {
     lucid
       ?.utxosAt(spendAddress)
-      .then(async (utxos) => {
+      ?.then(async (utxos) => {
         const auctionList: AuctionData[] = [];
         for (const utxo of utxos) {
           const { assets } = utxo;
@@ -52,7 +52,7 @@ export default function AuctionList() {
         });
         setAuctionList(auctionList);
       })
-      .catch(handleError);
+      ?.catch(handleError);
   }
 
   if (!auctionList)
